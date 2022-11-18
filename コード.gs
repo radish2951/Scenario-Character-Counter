@@ -2,40 +2,58 @@ let data = new Map();
 const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
 const sheet = spreadsheet.getSheetByName("文字数");
 const range = spreadsheet.getSheetByName("対象ファイルID").getDataRange();
-const IDList = range.getValues().map(value => { return value[0]; });
+const fileList = range.getValues().map(value => { return value[0]; });
   
+
 
 function execute() {
   
-  for (let i = 0; i < IDList.length; i++) {
+  for (let i = 0; i < fileList.length; i++) {
 
-    //if (i < 3) continue;
-
-    const column = 1 + i * 2;
-
-    data.clear();
-
-    const values = sheet.getRange(2, column, 500, 2).getValues();
-
-    for (const row of values) {
-
-      if (!row[0]) continue;
-
-      data.set((new Date(row[0])).getTime(), row[1]);
-    }
-
-    const fileID = IDList[i];
+    const column = 1 + i * 3;
+    
+    const fileID = fileList[i];
     // const name = DocumentApp.openById(fileID).getName();
     // sheet.getRange(1, column).setValue(name);
 
+    fetchCurrent(column);
+    
     listFileRevisions(fileID, column);
+    
     updateSheet(column);
     
 
   }
 
   mergeRevisions();
+
 }
+
+
+
+function fetchCurrent(column) {
+
+  data.clear();
+
+    const values = sheet.getRange(2, column, 1000, 3).getValues();
+
+    for (const row of values) {
+
+      const revisionID = row[0];
+      const date = row[1];
+      const len = row[2];
+
+      if (!revisionID) continue;
+
+      data.set(revisionID, {
+        date: new Date(date).getTime(),
+        len: len
+      });
+    }
+
+}
+
+
 
 function listFileRevisions(fileID, column) {
 
@@ -43,71 +61,99 @@ function listFileRevisions(fileID, column) {
   const list = Drive.Revisions.list(fileID);
   const revisions = list.items;
 
-  Logger.log(list.nextPageToken);
-
   let row = 2;
 
   for (const revision of revisions) {
 
+    const revisionID = revision.id;
+
+    // すでに記録している場合はスキップ
+    if (data.has(parseInt(revisionID))) {
+      Logger.log("リビジョン %s をスキップします", revisionID);
+      continue;
+    }
+
+    Logger.log("新しいリビジョン %s を取得するよ", revisionID);
+
     try {
 
-    const revisionID = revision.id;
     const doc = Drive.Revisions.get(fileID, revisionID);
     const date = new Date(doc.modifiedDate);
     const url = doc.exportLinks["text/plain"];
     const res = UrlFetchApp.fetch(url, {headers: {Authorization: "Bearer " + ScriptApp.getOAuthToken()}});
     const length = res.getContentText().length;
-    Logger.log('%s: %s 文字', date, length);
+    // Logger.log('%s: %s 文字', date, length);
 
-    data.set(date.getTime(), length);
+    data.set(revisionID, {
+      date: date.getTime(),
+      len: length
+    });
+
+    Logger.log("新しいリビジョン %s を取得しました", revisionID);
 
     } catch {
-      Logger.log("リビジョンエラー出たね");
+      Logger.log("リビジョンなさそう");
+
     }
-
-    //sheet.getRange(row, column).setValue(date);
-    //sheet.getRange(row, column + 1).setValue(length);
-
-    // row += 1;
   
   }
 
+  data = new Map([...data].sort((a, b) => a - b));
+
 }
+
+
 
 function updateSheet(column) {
 
   let row = 2;
 
-  for (let [key, value] of data) {
-    sheet.getRange(row, column).setValue(new Date(key));
-    sheet.getRange(row, column + 1).setValue(value);
+  for (let [revisionID, value] of data) {
+
+    // const revisionFinder = sheet.getRange(2, column, 1000).createTextFinder(revisionID);
+
+    const date = value.date;
+    const len = value.len;
+
+    // if (!revisionFinder.findNext()) {
+      sheet.getRange(row, column).setValue(revisionID);
+      sheet.getRange(row, column + 1).setValue(new Date(date));
+      sheet.getRange(row, column + 2).setValue(len);
+    // }
 
     row += 1;
 
   }
 
-  sheet.getRange(2, column, 500, 2).sort(column)
+  sheet.getRange(2, column, 500, 3).sort(column);
+  
 }
+
+
 
 function mergeRevisions() {
 
   data.clear();
   
-  for (let i = 0; i < IDList.length; i++) {
+  for (let i = 0; i < fileList.length; i++) {
 
-    const fileID = IDList[i];
+    const fileID = fileList[i];
 
     data.set(fileID, new Map());
 
-    const column = 1 + i * 2;
+    const column = 1 + i * 3
 
-    const values = sheet.getRange(2, column, 500, 2).getValues();
+    const values = sheet.getRange(2, column, 1000, 3).getValues();
 
     for (const row of values) {
 
-      if (!row[0]) continue;
+      const revisionID = row[0];
+      const date = row[1];
+      const len = row[2];
 
-      data.get(fileID).set((new Date(row[0])).getTime(), row[1]);
+      if (!revisionID) continue;
+
+      data.get(fileID).set(new Date(date).getTime(), len);
     }
 
   }
@@ -159,21 +205,16 @@ function mergeRevisions() {
 
   }
 
-  let row = 2;
-  let column = 15;
+  newData = new Map([...newData].sort());
 
-  for (let [key, value] of newData) {
-    sheet.getRange(row, column).setValue(new Date(key));
-    sheet.getRange(row, column + 1).setValue(value);
+  let row = 2;
+
+  for (let [date, len] of newData) {
+
+    sheet.getRange(row, 20).setValue(new Date(date));
+    sheet.getRange(row, 20 + 1).setValue(len);
 
     row += 1;
 
   }
-
-  sheet.getRange(2, column, 500, 2).sort(column)
-
-
-
 }
-
-
