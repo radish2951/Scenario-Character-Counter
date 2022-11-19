@@ -3,6 +3,8 @@ const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
 const sheet = spreadsheet.getSheetByName("文字数");
 const range = spreadsheet.getSheetByName("対象ファイルID").getDataRange();
 const fileList = range.getValues().map(row => { return row[0]; });
+
+const START_ROW = 3;
   
 
 
@@ -35,7 +37,7 @@ function fetchCurrent(column) {
 
   data.clear();
 
-    const values = sheet.getRange(2, column, 1000, 3).getValues();
+    const values = sheet.getRange(START_ROW, column, 1000, 3).getValues();
 
     for (const row of values) {
 
@@ -61,7 +63,7 @@ function listFileRevisions(fileID, column) {
   const list = Drive.Revisions.list(fileID);
   const revisions = list.items;
 
-  let row = 2;
+  let row = START_ROW;
 
   for (const revision of revisions) {
 
@@ -106,13 +108,13 @@ function listFileRevisions(fileID, column) {
 
 function updateSheet(column) {
 
-  let row = 2;
+  let row = START_ROW;
 
   let existsNewRevision = false;
 
   for (let [revisionID, value] of data) {
 
-    const revisionFinder = sheet.getRange(2, column, 1000).createTextFinder(revisionID);
+    const revisionFinder = sheet.getRange(START_ROW, column, 1000).createTextFinder(revisionID);
 
     const date = new Date(value.date);
     const len = value.len;
@@ -135,7 +137,7 @@ function updateSheet(column) {
 
   if (existsNewRevision) {
 
-    sheet.getRange(2, column, 1000, 3).sort(column);
+    sheet.getRange(START_ROW, column, 1000, 3).sort(column);
   
   }
 
@@ -155,7 +157,7 @@ function mergeRevisions() {
 
     const column = 1 + i * 3
 
-    const values = sheet.getRange(2, column, 1000, 3).getValues();
+    const values = sheet.getRange(START_ROW, column, 1000, 3).getValues();
 
     for (const row of values) {
 
@@ -219,7 +221,7 @@ function mergeRevisions() {
 
   newData = new Map([...newData].sort());
 
-  let row = 2;
+  let row = START_ROW;
 
   const column = 1;
 
