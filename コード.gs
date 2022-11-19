@@ -2,7 +2,7 @@ let data = new Map();
 const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
 const sheet = spreadsheet.getSheetByName("文字数");
 const range = spreadsheet.getSheetByName("対象ファイルID").getDataRange();
-const fileList = range.getValues().map(value => { return value[0]; });
+const fileList = range.getValues().map(row => { return row[0]; });
   
 
 
@@ -221,16 +221,18 @@ function mergeRevisions() {
 
   let row = 2;
 
-  const column = 20;
+  const column = 1;
+
+  const resultSheet = spreadsheet.getSheetByName("合計");
 
   for (let [date, len] of newData) {
 
-    const currentDate = new Date(sheet.getRange(row, column).getValue()).getTime();
+    const currentDate = new Date(resultSheet.getRange(row, column).getValue()).getTime();
 
     if (currentDate != date) {
 
-      sheet.getRange(row, column).setValue(new Date(date));
-      sheet.getRange(row, column + 1).setValue(len);
+      resultSheet.getRange(row, column).setValue(new Date(date));
+      resultSheet.getRange(row, column + 1).setValue(len);
 
     }
 
