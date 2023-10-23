@@ -37,16 +37,13 @@ function listFileRevisions(fileID, column, currentData) {
   revisions.forEach(revision => {
     const revisionID = Number(revision.id);
     if (currentData.has(revisionID)) return;
-    try {
-      const doc = Drive.Revisions.get(fileID, revisionID);
-      const date = new Date(doc.modifiedDate).getTime();
-      const url = doc.exportLinks["text/plain"];
-      const res = UrlFetchApp.fetch(url, { headers: { Authorization: "Bearer " + ScriptApp.getOAuthToken() } });
-      const len = res.getContentText().length;
-      currentData.set(revisionID, { date, len });
-    } catch {
-      Logger.log("リビジョンなさそう");
-    }
+
+    const doc = Drive.Revisions.get(fileID, revisionID);
+    const date = new Date(doc.modifiedDate).getTime();
+    const url = doc.exportLinks["text/plain"];
+    const res = UrlFetchApp.fetch(url, { headers: { Authorization: "Bearer " + ScriptApp.getOAuthToken() } });
+    const len = res.getContentText().length;
+    currentData.set(revisionID, { date, len });
   });
 
   return new Map([...currentData].sort((a, b) => a[0] - b[0]));
@@ -56,10 +53,10 @@ function updateSheet(column, updatedData, currentData) {
   // 更新されていなかったら即座にfalseを返す
   if (updatedData.size <= currentData.size) {
     return false;
-  // そうじゃない場合、更新されているので、更新してtrueを返す
+    // そうじゃない場合、更新されているので、更新してtrueを返す
   } else {
     sheet.getRange(START_ROW, column, updatedData.size, COLUMNS_PER_FILE)
-         .setValues(Array.from(updatedData.entries()));
+      .setValues(Array.from(updatedData.entries()));
     return true;
   }
 }
