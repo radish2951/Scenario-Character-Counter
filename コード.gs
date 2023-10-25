@@ -18,7 +18,7 @@ function execute() {
     updated = updateSheet(column, updatedData, currentData) || updated;
   });
 
-  if (updated) mergeRevisions();
+  // if (updated) mergeRevisions();
 }
 
 function fetchCurrent(column) {
@@ -26,13 +26,14 @@ function fetchCurrent(column) {
   const values = sheet.getRange(START_ROW, column, sheet.getLastRow(), COLUMNS_PER_FILE).getValues();
   values.forEach(row => {
     const [revisionID, date, len] = row;
-    if (revisionID) currentData.set(Number(revisionID), { date: new Date(date).getTime(), len });
+    if (revisionID) currentData.set(Number(revisionID), [new Date(date).getTime(), len]);
   });
   return currentData;
 }
 
 function listFileRevisions(fileID, column, currentData) {
   const revisions = Drive.Revisions.list(fileID).items;
+  const updatedData = new Map(currentData);
 
   revisions.forEach(revision => {
     const revisionID = Number(revision.id);
@@ -43,10 +44,10 @@ function listFileRevisions(fileID, column, currentData) {
     const url = doc.exportLinks["text/plain"];
     const res = UrlFetchApp.fetch(url, { headers: { Authorization: "Bearer " + ScriptApp.getOAuthToken() } });
     const len = res.getContentText().length;
-    currentData.set(revisionID, { date, len });
+    updatedData.set(revisionID, [date, len]);
   });
 
-  return new Map([...currentData].sort((a, b) => a[0] - b[0]));
+  return new Map([...updatedData].sort((a, b) => a[0] - b[0]));
 }
 
 function updateSheet(column, updatedData, currentData) {
@@ -56,7 +57,7 @@ function updateSheet(column, updatedData, currentData) {
     // そうじゃない場合、更新されているので、更新してtrueを返す
   } else {
     sheet.getRange(START_ROW, column, updatedData.size, COLUMNS_PER_FILE)
-      .setValues(Array.from(updatedData.entries()));
+      .setValues(Array.from(updatedData).map(([key, value]) => [key, new Date(value[0]), value[1]]));
     return true;
   }
 }
@@ -121,6 +122,6 @@ function mergeRevisions() {
   }
 
   const resultSheet = spreadsheet.getSheetByName("合計");
-  const sortedData = Array.from(newData.entries()).sort(([d1], [d2]) => d1 - d2);
+  const sortedData = Array.from(newData).sort((a, b) => new Date(a[0]) - new Date(b[0]));
   resultSheet.getRange(START_ROW, START_COLUMN, sortedData.length, 2).setValues(sortedData);
 }
