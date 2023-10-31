@@ -125,3 +125,62 @@ function mergeRevisions() {
   const sortedData = Array.from(newData).sort((a, b) => new Date(a[0]) - new Date(b[0]));
   resultSheet.getRange(START_ROW, START_COLUMN, sortedData.length, 2).setValues(sortedData);
 }
+
+
+
+function countDialogues() {
+  const SHEET_NAME = 'ワード数';
+
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+
+  const docUrls = sheet.getRange("A:A").getValues().flat().filter(Boolean);  // "A:A"はURLが格納されている列を指定
+  // const charNames = sheet.getRange("B1:AZ1").getValues().flat().filter(Boolean);  // "B1:Z1"はキャラ名が格納されている行を指定
+
+  const counts = {};
+
+  docUrls.forEach((docId, rowIndex) => {
+    if (!docId) return;
+    
+    const doc = DocumentApp.openById(docId);
+    const text = doc.getBody().getText();
+    
+    const regex = /(.+?)「.+」$/gm;
+    let match;
+    
+    while ((match = regex.exec(text)) !== null) {
+      const matchedNames = match[1].split(/[・？（）]/).filter(Boolean);
+      
+      matchedNames.forEach((matchedName) => {
+        // if (!charNames.includes(matchedName)) return;
+
+        if (!counts[matchedName]) {
+          counts[matchedName] = {};
+        }
+
+        if (!counts[matchedName][docId]) {
+          counts[matchedName][docId] = 0;
+        }
+
+        counts[matchedName][docId]++;
+
+      });
+    }
+    
+  });
+
+  const charNames = Object.keys(counts);
+  const excludedNames = sheet.getRange(20, 2).getValue().split(',');
+
+  sheet.getRange(1, 2, 1, charNames.length).setValues([charNames]);
+  
+  charNames.forEach((charName, colIndex) => {
+    if (excludedNames.includes(charName)) return;
+
+    docUrls.forEach((docId, rowIndex) => {
+      if (!docId) return;
+
+      const count = counts[charName] && counts[charName][docId] || 0;
+      sheet.getRange(rowIndex + 2, colIndex + 2).setValue(count);
+    });
+  });
+}
