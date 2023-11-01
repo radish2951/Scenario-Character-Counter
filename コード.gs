@@ -18,7 +18,7 @@ function execute() {
     updated = updateSheet(column, updatedData, currentData) || updated;
   });
 
-  // if (updated) mergeRevisions();
+  if (updated) mergeRevisions();
 }
 
 function fetchCurrent(column) {
@@ -84,14 +84,13 @@ function mergeRevisions() {
 
   let newData = new Map();
 
+  // ファイルについてイテレート
   for (let [fileID, value] of data) {
 
-    const _data = value;
+    // あるファイルのリビジョンについてイテレート
+    for (let [date, len] of value) {
 
-    // あるファイルのリビジョンを見ていく
-    for (let [date, len] of _data) {
-
-      // このファイルの文字数
+      // このリビジョンの文字数
       let current = len;
 
       // 他のファイルを見に行く
@@ -102,15 +101,14 @@ function mergeRevisions() {
 
         let lenResult = 0;
 
-        // 他のファイルのログを一個ずつ確認
+        // 他のファイルのリビジョンを一個ずつ確認
         for (let [_date, _len] of _value) {
 
-          // 比較対象より古かったら採用
+          // 他のファイルの日付の方が古かったら採用
           if (_date < date) {
-
             lenResult = _len;
 
-            // 古い方から見ていくので、超えたら即終わり
+            // 古い方から見ていくので、超えたら即終わり。次のファイルへ
           } else {
             break;
           }
@@ -122,7 +120,7 @@ function mergeRevisions() {
   }
 
   const resultSheet = spreadsheet.getSheetByName("合計");
-  const sortedData = Array.from(newData).sort((a, b) => new Date(a[0]) - new Date(b[0]));
+  const sortedData = Array.from(newData).sort((a, b) => a[0].getTime() - b[0].getTime());
   resultSheet.getRange(START_ROW, START_COLUMN, sortedData.length, 2).setValues(sortedData);
 }
 
@@ -183,4 +181,12 @@ function countDialogues() {
       sheet.getRange(rowIndex + 2, colIndex + 2).setValue(count);
     });
   });
+}
+
+function onOpen() {
+  var ui = SpreadsheetApp.getUi();
+  // メニュー項目を追加
+  ui.createMenu('カスタムメニュー')
+      .addItem('ワード数をカウント', 'countDialogues')
+      .addToUi();
 }
